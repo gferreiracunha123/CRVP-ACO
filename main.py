@@ -25,6 +25,7 @@ def cria_csv(arq, inicio, nome, qnt_veiculo, total_custo, tempo):
 
 
 def cria_arq_plot(nome, value):
+    nome = nome.split('/')[-1]
     try:
         with open(f'arq_sol/{nome}.result', 'w', newline='', encoding='utf-8') as f:
             w = csv.writer(f)
@@ -36,7 +37,6 @@ def cria_arq_plot(nome, value):
 def dividir_e_executar(arq, lista, num_threads):
     tamanho_sublista = len(lista) // num_threads
     threads = []
-
     for i in range(num_threads):
         inicio = i * tamanho_sublista
         fim = (i + 1) * tamanho_sublista if i < num_threads - 1 else None
@@ -51,7 +51,6 @@ def dividir_e_executar(arq, lista, num_threads):
 
 
 def processar_sublista(arq, files):
-    raiz = 'dataset/Vrp-Set-A/'
     index = 0
     for file in files:
         if not ".vrp" in file:
@@ -59,11 +58,16 @@ def processar_sublista(arq, files):
             continue
         routes = []
         try:
-            cvrp = CVRP(str(raiz) + file)
+            cvrp = CVRP(str(file))
             heuristicas = Heuristicas(cvrp, plot=False)
-            print("Start" + file)
+            print("Start :" + str(file).split('/')[-1])
             inicio = time.time()
-            cost, routes = heuristicas.ant_colony(ite=20, ants=20, k=3, worst=True, elitist=True,
+            ite = 20
+            try:
+                ite = int(cvrp.n / 2)
+            except Exception as e:
+                print("ite: " + cvrp.n + " e: " + e)
+            cost, routes = heuristicas.ant_colony(ite=ite, ants=ite, k=3, worst=True, elitist=True,
                                                   evapor=0.5)
             fim = time.time()
             print("Finalizado")
@@ -71,12 +75,12 @@ def processar_sublista(arq, files):
             for route in routes:
                 print("Rotas: ", route, " Custo: ", cvrp.route_one_cost(route))
 
-            cria_csv(arq, index == 0, file, len(routes), cvrp.route_cost(routes), str(fim - inicio))
+            cria_csv(arq, index == 0, str(file).split('/')[-1], len(routes), cvrp.route_cost(routes), str(fim - inicio))
             index = index + 1
             print("Custo total:", cvrp.route_cost(routes))
         except Exception as e:
             print(f"Erro ao criar rotas: {e}, {file}")
-            cria_arq_plot(file + "error", str(e))
+            cria_arq_plot(file + ".error", str(e))
         try:
             cria_arq_plot(file, str(routes))
         except Exception as e:
@@ -86,16 +90,17 @@ def processar_sublista(arq, files):
 if __name__ == '__main__':
     arq = 'analise/analise_Ant.csv'
     open(arq, 'w', newline='', encoding='utf-8')
-    raiz = 'dataset/Vrp-Set-A/'
     folds_raiz = 'dataset/'
     folds = listdir(folds_raiz)
     files = []
     for fold in folds:
-        files.append([f for f in listdir(folds_raiz+fold) if isfile(join(folds_raiz+fold, f))])
+        listA = [f for f in listdir(folds_raiz + fold + "/") if isfile(join(folds_raiz + fold + "/", f))]
+        listB = [folds_raiz + fold + "/" + item for item in listA]
+        files.append(listB)
     index = 0
     resultado_extend = []
     for file in files:
-         resultado_extend.extend(file)
+        resultado_extend.extend(file)
     nova_files = [item for item in resultado_extend if ".sol" not in item]
     # Número de threads desejadas
     num_threads = 15
