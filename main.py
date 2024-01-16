@@ -1,4 +1,6 @@
 import csv
+import json
+import threading
 import time
 from os import listdir
 from os.path import isfile, join
@@ -7,45 +9,95 @@ from cvrp import CVRP
 from heuristicas import Heuristicas
 
 
-def cria_csv(inicio, nome, qnt_veiculo, total_custo, tempo):
-    f = open('dataset/analise/analise_Ant.csv', 'a', newline='', encoding='utf-8')
+def cria_csv(arq, inicio, nome, qnt_veiculo, total_custo, tempo):
+    f = open(arq, 'a', newline='', encoding='utf-8')
 
     # 2. cria o objeto de gravação
     w = csv.writer(f)
 
     # 3. grava as linhas
     if inicio:
-        w.writerow(["Nome", "qnt Veiculos ", "custo","Tempo"])
+        w.writerow(["Nome", "qnt Veiculos ", "custo", "Tempo"])
     w.writerow([nome, qnt_veiculo, total_custo, tempo])
 
     # Recomendado: feche o arquivo
     f.close()
 
 
-if __name__ == '__main__':
+def cria_arq_plot(nome, value):
+    try:
+        with open(f'arq_sol/{nome}.result', 'w', newline='', encoding='utf-8') as f:
+            w = csv.writer(f)
+            w.writerow([value])
+    except Exception as e:
+        print(f"Erro ao criar o arquivo: {e}")
 
-    open('dataset/analise/analise_Ant.csv', 'w', newline='', encoding='utf-8')
+
+def dividir_e_executar(arq, lista, num_threads):
+    tamanho_sublista = len(lista) // num_threads
+    threads = []
+
+    for i in range(num_threads):
+        inicio = i * tamanho_sublista
+        fim = (i + 1) * tamanho_sublista if i < num_threads - 1 else None
+        sublista = lista[inicio:fim]
+
+        thread = threading.Thread(target=processar_sublista, args=(arq, sublista,))
+        thread.start()
+        threads.append(thread)
+
+    # for thread in threads:
+    # thread.join()
+
+
+def processar_sublista(arq, files):
     raiz = 'dataset/Vrp-Set-A/'
-    files = [f for f in listdir(raiz) if isfile(join(raiz, f))]
     index = 0
     for file in files:
         if not ".vrp" in file:
             print("skip: " + file)
             continue
+        routes = []
+        try:
+            cvrp = CVRP(str(raiz) + file)
+            heuristicas = Heuristicas(cvrp, plot=False)
+            print("Start" + file)
+            inicio = time.time()
+            cost, routes = heuristicas.ant_colony(ite=20, ants=20, k=3, worst=True, elitist=True,
+                                                  evapor=0.5)
+            fim = time.time()
+            print("Finalizado")
 
-        cvrp = CVRP(str('dataset/Vrp-Set-A/') + file)
-        heuristicas = Heuristicas(cvrp, plot=False)
-        print("Start" + file)
-        inicio = time.time()
-        cost, routes = heuristicas.ant_colony(ite=20, ants=20,k=3, worst=True, elitist=True,
-                                              evapor=0.5)
-        fim = time.time()
-        print("Finalizado")
+            for route in routes:
+                print("Rotas: ", route, " Custo: ", cvrp.route_one_cost(route))
 
-        for route in routes:
-            print("Rotas: ", route, " Custo: ", cvrp.route_one_cost(route))
+            cria_csv(arq, index == 0, file, len(routes), cvrp.route_cost(routes), str(fim - inicio))
+            index = index + 1
+            print("Custo total:", cvrp.route_cost(routes))
+        except Exception as e:
+            print(f"Erro ao criar rotas: {e}, {file}")
+            cria_arq_plot(file + "error", str(e))
+        try:
+            cria_arq_plot(file, str(routes))
+        except Exception as e:
+            print(f"Erro ao criar o cria_arq_plot: {e}, {routes}")
 
-        cria_csv(index == 0, file, len(routes), cvrp.route_cost(routes), str(fim - inicio))
-        index = index + 1
-        print("Custo total:", cvrp.route_cost(routes))
-        #cvrp.plot(routes=routes)
+
+if __name__ == '__main__':
+    arq = 'analise/analise_Ant.csv'
+    open(arq, 'w', newline='', encoding='utf-8')
+    raiz = 'dataset/Vrp-Set-A/'
+    folds_raiz = 'dataset/'
+    folds = listdir(folds_raiz)
+    files = []
+    for fold in folds:
+        files.append([f for f in listdir(folds_raiz+fold) if isfile(join(folds_raiz+fold, f))])
+    index = 0
+    resultado_extend = []
+    for file in files:
+         resultado_extend.extend(file)
+    nova_files = [item for item in resultado_extend if ".sol" not in item]
+    # Número de threads desejadas
+    num_threads = 15
+    # Dividir e executar
+    dividir_e_executar(arq, nova_files, num_threads)
