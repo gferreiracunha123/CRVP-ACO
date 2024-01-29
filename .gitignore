@@ -1,0 +1,13 @@
+# .gitignore
+
+# IntelliJ IDEA
+*.iml
+.idea/
+*.xml
+
+# Miscellaneous
+misc.xml
+modules.xml
+profiles_settings.xml
+Project_Default.xml
+vcs.xml
