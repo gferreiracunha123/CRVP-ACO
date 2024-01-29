@@ -6,6 +6,9 @@ from copy import deepcopy
 import time
 
 import tsp
+from cvrp_ag_advancedga import CVRPAdvancedGA
+from cvrp_ag_info import CVRPInfo
+from cvrp_ag_runner import CVRPRunner
 from cvrp import CVRP
 
 
@@ -381,8 +384,7 @@ class Heuristicas:
                 trail[r[0], r[-1]] += valor
         return trail
 
-    @timeit
-    def ant_colony(self, ite: int, ants: int, evapor=0.1, k=1, worst=False,
+    def ant_colony(self, sol, cost, ite: int, ants: int, evapor=0.1, k=1, worst=False,
                    elitist=False):
         print("Processando...")
         n = self.cvrp.n
@@ -391,8 +393,11 @@ class Heuristicas:
         best_cost = np.inf
         best_estatic = np.inf
         listBests = []
-        #iniciar com AG
-#        cost, sol = self.tabu_search(1, k, 20, 1.05, cost, sol)
+        if sol is not None:
+            self._reinforcement(sol, -1, trail)
+        # iniciar com AG
+
+        #        cost, sol = self.tabu_search(1, k, 20, 1.05, cost, sol)
         for i in range(ite):
             lista = []
             if self.force_stop(listBests):

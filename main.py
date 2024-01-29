@@ -6,6 +6,9 @@ from os import listdir
 from os.path import isfile, join
 
 from cvrp import CVRP
+from cvrp_ag_advancedga import CVRPAdvancedGA
+from cvrp_ag_info import CVRPInfo
+from cvrp_ag_runner import CVRPRunner
 from heuristicas import Heuristicas
 
 
@@ -16,8 +19,7 @@ def cria_csv(arq, inicio, nome, qnt_veiculo, total_custo, tempo):
     w = csv.writer(f)
 
     # 3. grava as linhas
-    if inicio:
-        w.writerow(["Nome", "qnt Veiculos ", "custo", "Tempo"])
+
     w.writerow([nome, qnt_veiculo, total_custo, tempo])
 
     # Recomendado: feche o arquivo
@@ -41,10 +43,10 @@ def dividir_e_executar(arq, lista, num_threads):
         inicio = i * tamanho_sublista
         fim = (i + 1) * tamanho_sublista if i < num_threads - 1 else None
         sublista = lista[inicio:fim]
-
-        thread = threading.Thread(target=processar_sublista, args=(arq, sublista,))
-        thread.start()
-        threads.append(thread)
+        processar_sublista(arq, sublista)
+        # thread = threading.Thread(target=processar_sublista, args=(arq, sublista,))
+        # thread.start()
+        # threads.append(thread)
 
     # for thread in threads:
     # thread.join()
@@ -57,7 +59,8 @@ def processar_sublista(arq, files):
             print("skip: " + file)
             continue
         routes = []
-        try:
+
+        if "A-n32-k5.vrp" in file:
             cvrp = CVRP(str(file))
             heuristicas = Heuristicas(cvrp, plot=False)
             print("Start :" + str(file).split('/')[-1])
@@ -67,7 +70,16 @@ def processar_sublista(arq, files):
                 ite = int(cvrp.n / 2)
             except Exception as e:
                 print("ite: " + cvrp.n + " e: " + e)
-            cost, routes = heuristicas.ant_colony(ite=ite, ants=ite, k=3, worst=True, elitist=True,
+            cvrp_ag = CVRPRunner(CVRPAdvancedGA(CVRPInfo(file, debug=False), 1, 100), 1)
+            result = cvrp_ag.run()
+            # result.routes
+            list = []
+            for route in result.routes:
+                list.append(route.cast_list_int())
+            transfomation = [[element - 1 for element in sublist] for sublist in list]
+
+            cost, routes = heuristicas.ant_colony(transfomation, result.cost, ite=ite, ants=ite, k=3, worst=True,
+                                                  elitist=True,
                                                   evapor=0.5)
             fim = time.time()
             print("Finalizado")
@@ -78,9 +90,7 @@ def processar_sublista(arq, files):
             cria_csv(arq, index == 0, str(file).split('/')[-1], len(routes), cvrp.route_cost(routes), str(fim - inicio))
             index = index + 1
             print("Custo total:", cvrp.route_cost(routes))
-        except Exception as e:
-            print(f"Erro ao criar rotas: {e}, {file}")
-            cria_arq_plot(file + ".error", str(e))
+
         try:
             cria_arq_plot(file, str(routes))
         except Exception as e:
@@ -89,7 +99,10 @@ def processar_sublista(arq, files):
 
 if __name__ == '__main__':
     arq = 'analise/analise_Ant.csv'
-    open(arq, 'w', newline='', encoding='utf-8')
+    f = open(arq, 'w', newline='', encoding='utf-8')
+    w = csv.writer(f)
+    w.writerow(["Nome", "qnt Veiculos ", "custo", "Tempo"])
+    f.close()
     folds_raiz = 'dataset/'
     folds = listdir(folds_raiz)
     files = []
@@ -103,6 +116,6 @@ if __name__ == '__main__':
         resultado_extend.extend(file)
     nova_files = [item for item in resultado_extend if ".sol" not in item]
     # Número de threads desejadas
-    num_threads = 15
+    num_threads = 1
     # Dividir e executar
     dividir_e_executar(arq, nova_files, num_threads)
