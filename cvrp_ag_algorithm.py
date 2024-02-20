@@ -8,6 +8,3 @@ class CVRPAlgorithm(object):
 
     def random_path(self):
         pass
-
-if __name__ == "__main__":
-    print("Run cvrp_runner instead")

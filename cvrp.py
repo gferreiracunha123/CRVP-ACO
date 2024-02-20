@@ -37,8 +37,7 @@ class CVRP:
         self.coord = np.array(list(problem.node_coords.values()))
         self.d = np.array(list(problem.demands.values()))
 
-
-    def plot(self, routes=None, edges=None, clear_edges=True, stop=True, sleep_time=0.01):
+    def plot(self, routes=None, edges=None, clear_edges=True, stop=True, sleep_time=0.01, nome=None):
 
         if clear_edges:
             self.graph.clear_edges()
@@ -59,6 +58,7 @@ class CVRP:
             plt.show()
         else:
             plt.draw()
+            plt.savefig("images/" + str(nome).replace(".vrp", ".png"))
             plt.pause(sleep_time)
         pass
 

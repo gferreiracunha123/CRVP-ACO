@@ -99,7 +99,8 @@ def runner(arq, files, ite: int = None, ants: int = 20, evapor=0.1, k=3, worst=F
 
         # Tenta criar um arquivo de plot para as rotas, se falhar, exibe uma mensagem de erro
         try:
-            cria_arq_plot(file, str(routes))
+            if len(routes) > 0:
+                cria_arq_plot(file, str(routes))
         except Exception as e:
             print(f"Erro ao criar o cria_arq_plot: {e}, {routes}")
 
