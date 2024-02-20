@@ -2,6 +2,7 @@
 
 # IntelliJ IDEA
 *.iml
+.idea/*
 .idea/
 *.xml
 
@@ -11,3 +12,4 @@ modules.xml
 profiles_settings.xml
 Project_Default.xml
 vcs.xml
+/.idea/

@@ -6,9 +6,6 @@ from copy import deepcopy
 import time
 
 import tsp
-from cvrp_ag_advancedga import CVRPAdvancedGA
-from cvrp_ag_info import CVRPInfo
-from cvrp_ag_runner import CVRPRunner
 from cvrp import CVRP
 
 
@@ -395,9 +392,6 @@ class Heuristicas:
         listBests = []
         if sol is not None:
             self._reinforcement(sol, -1, trail)
-        # iniciar com AG
-
-        #        cost, sol = self.tabu_search(1, k, 20, 1.05, cost, sol)
         for i in range(ite):
             lista = []
             if self.force_stop(listBests):

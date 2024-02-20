@@ -7,7 +7,7 @@ import time
 import signal
 
 
-class CVRPRunner(object):
+class CVRPRunnerAg(object):
 
     def __init__(self, algorithm, iterations):
         self.algorithm = algorithm

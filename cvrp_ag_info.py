@@ -1,7 +1,6 @@
 import os
 import math
 import random
-import threading
 
 import tsplib95
 from PIL import Image, ImageDraw
