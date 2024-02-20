@@ -47,8 +47,6 @@ class Heuristicas:
                     imp = tsp.three_opt(r, self.cvrp.c)
                 if imp:
                     chg = True
-            if self.plot:
-                self.cvrp.plot(routes=route, clear_edges=True, stop=False)
         if chg:
             cost = self.cvrp.route_cost(route)
         assert self.cvrp.is_feasible(route)
@@ -381,7 +379,7 @@ class Heuristicas:
                 trail[r[0], r[-1]] += valor
         return trail
 
-    def ant_colony(self, sol, cost, ite: int, ants: int, evapor=0.1, k=1, worst=False,
+    def ant_colony(self, sol, ite: int, ants: int, evapor=0.1, k=1, worst=False,
                    elitist=False):
         print("Processando...")
         n = self.cvrp.n
@@ -390,6 +388,8 @@ class Heuristicas:
         best_cost = np.inf
         best_estatic = np.inf
         listBests = []
+        cost = None
+        num_intracao = 0
         if sol is not None:
             self._reinforcement(sol, -1, trail)
         for i in range(ite):
@@ -401,11 +401,11 @@ class Heuristicas:
                 cost = self.cvrp.route_cost(sol)
                 cost, sol = self.tabu_search(1, k, 20, 1.05, cost, sol)
                 lista.append((cost, sol))
-                best_estatic = cost
                 if cost < best_cost:
                     best_cost = cost
                     best_route = deepcopy(sol)
-            listBests.append(best_estatic)
+                # print(i, f, best_route, best_cost)
+            listBests.append(best_cost)
             # evaporação
             trail = (1 - evapor) * trail
             # reforço
@@ -423,8 +423,8 @@ class Heuristicas:
             for cost, sol in lista[:k]:
                 self._reinforcement(sol, delta, trail)
                 delta -= 1
-
-        return best_cost, best_route
+            num_intracao = i
+        return best_cost, best_route, num_intracao
 
     def force_stop(self, lista):
         if len(lista) < 3:
