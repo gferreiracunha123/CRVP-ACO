@@ -12,10 +12,10 @@ from cvrp_ag_runner import CVRPRunnerAg
 from heuristicas import Heuristicas
 
 
-def cria_csv(arq, inicio, nome, qnt_veiculo, total_custo, tempo, interacao):
+def cria_csv(arq, inicio, nome, qnt_veiculo, total_custo, tempo, interacao,otimo,desvio):
     f = open(arq, 'a', newline='', encoding='utf-8')
     w = csv.writer(f)
-    w.writerow([nome, qnt_veiculo, total_custo, tempo, interacao])
+    w.writerow([nome, qnt_veiculo, total_custo, tempo, interacao,otimo,desvio])
     f.close()
 
 
@@ -106,7 +106,7 @@ def runner(arq, files, ite: int = None, ants: int = 20, evapor=0.1, k=3, worst=F
                 tempo_formatado = "{:02}:{:02}:{:02}".format(horas, minutos, segundos)
 
                 cria_csv(arq, index == 0, str(file).split('/')[-1], len(routes), cvrp.route_cost(routes),
-                         tempo_formatado, interacao)
+                         tempo_formatado, interacao,1,3)
                 index = index + 1
                 # Imprime o custo total das rotas
                 print("Custo total:", cvrp.route_cost(routes))
@@ -167,7 +167,7 @@ if __name__ == '__main__':
     # Cria um escritor CSV
     w = csv.writer(f)
     # Escreve a linha de cabeçalho no arquivo CSV
-    w.writerow(["Nome", "qnt Veiculos ", "custo", "Tempo", "iteracao"])
+    w.writerow(["Nome", "qnt Veiculos ", "custo", "Tempo", "iteracao,Valor otimo","Desvio padrão"])
     # Fecha o arquivo CSV
     f.close()
 

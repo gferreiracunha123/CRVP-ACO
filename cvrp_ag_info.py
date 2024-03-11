@@ -3,7 +3,7 @@ import math
 import random
 
 import tsplib95
-from PIL import Image, ImageDraw
+
 
 
 class Route(object):

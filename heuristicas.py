@@ -114,40 +114,43 @@ class Heuristicas:
         q = self.cvrp.q
         c = self.cvrp.c
         d = self.cvrp.d
-        imp = True
         chg = False
         load = [d[r].sum() for r in route]
-        while imp:
+
+        # Função auxiliar para calcular a distância entre dois vértices
+        def calculate_delta(a, i, b, j):
+            nonlocal load
+            vi = route[a][i]
+            vj = route[b][j]
+            delta = (c[route[a][i - 1], vj] + c[vj, route[a][(i + 1) % len(route[a])]] -
+                     c[route[a][i - 1], vi] - c[vi, route[a][(i + 1) % len(route[a])]] +
+                     c[route[b][j - 1], vi] + c[vi, route[b][(j + 1) % len(route[b])]] -
+                     c[route[b][j - 1], vj] - c[vj, route[b][(j + 1) % len(route[b])]])
+            return delta
+
+        while True:
             imp = False
             for a in range(1, len(route)):
-                ra = route[a]
-                for i in range(1, len(ra)):
-                    vi = ra[i]
+                for i in range(1, len(route[a])):
                     for b in range(a):
-                        rb = route[b]
-                        for j in range(1, len(rb)):
-                            vj = rb[j]
-                            if load[a] + d[vj] - d[vi] <= q and load[b] + d[vi] - d[vj] <= q:
-                                delta = c[ra[i - 1], vj] + c[vj, ra[(i + 1) % len(ra)]] - c[ra[i - 1], vi] - \
-                                        c[vi, ra[(i + 1) % len(ra)]] + c[rb[j - 1], vi] + c[vi, rb[(j + 1) % len(rb)]] - \
-                                        c[rb[j - 1], vj] - c[vj, rb[(j + 1) % len(rb)]]
-                                if delta < -1e-3:
-                                    ra[i] = vj
-                                    rb[j] = vi
-                                    # adaptação para o tabu
-                                    if self.tabu_list is not None:
-                                        if self._is_tabu(ra, cost + delta) or self._is_tabu(rb, cost + delta):
-                                            ra[i] = vi
-                                            rb[j] = vj
-                                            continue
+                        for j in range(1, len(route[b])):
+                            delta = calculate_delta(a, i, b, j)
+                            if delta < -1e-3 and load[a] + d[route[b][j]] - d[route[a][i]] <= q and load[b] + d[
+                                route[a][i]] - d[route[b][j]] <= q:
+                                if self.tabu_list is not None:
+                                    if self._is_tabu(route[a], cost + delta) or self._is_tabu(route[b], cost + delta):
+                                        continue
+                                vi, vj = route[a][i], route[b][j]
+                                route[a][i], route[b][j] = vj, vi
+                                load[a] += d[vj] - d[vi]
+                                load[b] += d[vi] - d[vj]
+                                chg = imp = True
+                                cost += delta
+                                if self.plot:
+                                    self.cvrp.plot(routes=route, clear_edges=True, stop=False)
+            if not imp:
+                break
 
-                                    load[a] += d[vj] - d[vi]
-                                    load[b] += d[vi] - d[vj]
-                                    chg = imp = True
-                                    vi, vj = vj, vi
-                                    cost += delta
-                                    if self.plot:
-                                        self.cvrp.plot(routes=route + [ra], clear_edges=True, stop=False)
         assert self.cvrp.is_feasible(route)
         return chg, cost
 
@@ -155,71 +158,93 @@ class Heuristicas:
         q = self.cvrp.q
         c = self.cvrp.c
         d = self.cvrp.d
-        imp = True
         chg = False
-        while imp:
+
+        while True:
             imp = False
+
             for a in range(1, len(route)):
                 ra = route[a]
+
                 if len(ra) < 3:
                     continue
+
                 for i in range(1, len(ra)):
                     vi = ra[i]
                     vni = ra[(i + 1) % len(ra)]
+
                     for b in range(a):
                         rb = route[b]
+
                         if len(rb) < 3:
                             continue
+
                         for j in range(1, len(rb)):
                             vj = rb[j]
                             vnj = rb[(j + 1) % len(rb)]
+
                             delta = c[vj, vni] + c[vi, vnj] - c[vi, vni] - c[vj, vnj]
+
                             if delta < -1e-3:
                                 if sum(d[ra[0:i + 1]]) + sum(d[rb[j + 1:]]) <= q and sum(d[rb[0:j + 1]]) + sum(
                                         d[ra[i + 1:]]) <= q:
-                                    # adaptação para o tabu
+                                    # Adaptação para o tabu
                                     if self.tabu_list is not None:
                                         if self._is_tabu(ra[0:i + 1] + rb[j + 1:], cost + delta) or self._is_tabu(
                                                 rb[0:j + 1] + ra[i + 1:], cost + delta):
                                             continue
+
                                     na = ra[0:i + 1] + rb[j + 1:]
                                     nb = rb[0:j + 1] + ra[i + 1:]
+
                                     ra.clear()
                                     ra.extend(na)
                                     rb.clear()
                                     rb.extend(nb)
+
                                     chg = imp = True
                                     cost += delta
+
                                     if self.plot:
                                         self.cvrp.plot(routes=route + [ra], clear_edges=True, stop=False)
+
                                     break
+
                             delta = c[vnj, vni] + c[vi, vj] - c[vi, vni] - c[vj, vnj]
+
                             if delta < -1e-3:
                                 if sum(d[ra[:i + 1]]) + sum(d[rb[:j + 1]]) <= q and sum(d[rb[j + 1:]]) + sum(
                                         d[ra[i + 1:]]) <= q:
-                                    # adaptação para o tabu
+                                    # Adaptação para o tabu
                                     if self.tabu_list is not None:
                                         if self._is_tabu(ra[:i + 1] + rb[j:0:-1], cost + delta) or self._is_tabu(
                                                 [0] + ra[:i:-1] + rb[j + 1:], cost + delta):
                                             continue
+
                                     na = ra[:i + 1] + rb[j:0:-1]
                                     nb = [0] + ra[:i:-1] + rb[j + 1:]
+
                                     ra.clear()
                                     ra.extend(na)
                                     rb.clear()
                                     rb.extend(nb)
+
                                     chg = imp = True
                                     cost += delta
+
                                     if self.plot:
                                         self.cvrp.plot(routes=route + [ra], clear_edges=True, stop=False)
+
                                     break
 
                         if imp:
                             break
+
                     if imp:
                         break
-                if imp:
-                    break
+
+            if not imp:
+                break
 
         assert self.cvrp.is_feasible(route)
         return chg, cost
@@ -233,23 +258,23 @@ class Heuristicas:
         """
         if cost is None:
             cost = self.cvrp.route_cost(sol)
-        imp = True
-        while imp:
-            np.random.shuffle(sol)
+
+        neighborhoods = [self.swap, self.replace, self.two_opt_star, self.intra_route]
+
+        while True:
+            np.random.shuffle(neighborhoods)
             imp = False
+
+            for neighborhood in neighborhoods:
+                imp, cost = neighborhood(sol, cost)
+                if imp:
+                    break
+
             if not imp:
-                imp, cost = self.swap(sol, cost)
-            if not imp:
-                imp, cost = self.replace(sol, cost)
-            if not imp:
-                imp, cost = self.two_opt_star(sol, cost)
-            if not imp:
-                imp, cost = self.intra_route(sol, cost)
+                break
 
         # eliminar rotas vazias
-        for i in reversed(range(len(sol))):
-            if len(sol[i]) <= 1:
-                del sol[i]
+        sol = [route for route in sol if len(route) > 1]
 
         assert self.cvrp.is_feasible(sol)
         assert cost == self.cvrp.route_cost(sol)
@@ -258,31 +283,30 @@ class Heuristicas:
     def _shake(self, sol, cost, k=1, tenure=0):
         """
         Perturba a solução destruindo rotas e reconstruindo com algoritmo de saving
-        As rotas destruídas se tornam tabus e não poderão ser reconstruidas
+        As rotas destruídas se tornam tabus e não poderão ser reconstruídas
 
         :param sol: Solução (lista de listas)
         :param k: número de rotas a serem destruídas
         :param tenure: tamanho máximo da lista tabu, usado quando self.tabu_list não é None
         :return: tupla (custo, solução)
         """
-        # seleciona k rotas para a destruição
-        destruct_list = sorted(rd.sample(range(len(sol)), k), reverse=True)
-
+        # Seleciona k rotas para destruição
+        destruct_list = rd.sample(range(len(sol)), k)
         v = []
-        # clientes sem rota
-        for r in destruct_list:
-            # destruir rotas
+
+        # Clientes sem rota
+        for r in sorted(destruct_list, reverse=True):
+            # Destrói rotas
             v.extend(sol[r][1:])
             if self.tabu_list is not None:
-                # cria tabu
+                # Cria tabu
                 self.tabu_list.append((set(sol[r]), cost))
                 if len(self.tabu_list) > tenure:
                     del self.tabu_list[0]
             del sol[r]
 
-        # cria rotas triviais para os clientes sem rotas
-        for i in v:
-            sol.append([0, i])
+        # Cria rotas triviais para os clientes sem rota
+        sol.extend([[0, i] for i in v])
         cost = self.cvrp.route_cost(sol)
         return cost, sol
 
@@ -399,6 +423,7 @@ class Heuristicas:
             for f in range(ants):
                 sol = self._ant_run(trail)
                 cost = self.cvrp.route_cost(sol)
+                progress(f + 1, ants, f'Turno: {i + 1} \tLast Ant: {cost} \t Best: {best_cost}')
                 cost, sol = self.tabu_search(1, k, 20, 1.05, cost, sol)
                 lista.append((cost, sol))
                 if cost < best_cost:
