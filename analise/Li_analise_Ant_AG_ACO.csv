@@ -1,4 +1,4 @@
-Nome,qnt Veiculos ,custo,Tempo,"iteracao,Valor otimo",Desvio padrão
-Li_21.vrp,10,16689.0,05:55:59,2,1,3
-Li_22.vrp,14,14441.0,09:11:24,3,1,3
-Li_23.vrp,10,19312.0,08:05:56,2,1,3
+Nome,qnt Veiculos ,Valor otimo,Tempo,iteracao,Otimo encontrado, Otimo conhecido,qnt Veiculos
+Li_21.vrp,10,16689.0,05:55:59,2,1,3,16212.83,Não,10
+Li_22.vrp,14,14441.0,09:11:24,3,1,3,14499.04,Não,15
+Li_23.vrp,10,19312.0,08:05:56,2,1,3,18801.13,Não,10
