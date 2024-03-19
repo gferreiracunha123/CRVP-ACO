@@ -1,4 +1,5 @@
 import os
+import random
 
 import networkx as nx
 import numpy as np
@@ -37,30 +38,51 @@ class CVRP:
         self.coord = np.array(list(problem.node_coords.values()))
         self.d = np.array(list(problem.demands.values()))
 
-    def plot(self, routes=None, edges=None, clear_edges=True, stop=True, sleep_time=0.01, nome=None):
+    def generate_random_colors(self,num_colors):
+        colors = []
+        for _ in range(num_colors):
+            r = random.randint(0, 255)
+            g = random.randint(0, 255)
+            b = random.randint(0, 255)
+            colors.append('#{:02x}{:02x}{:02x}'.format(r, g, b))
+        return colors
 
+    def plot(self, routes=None, edges=None, clear_edges=True, stop=True, sleep_time=0.01, nome=None,language="pt"):
         if clear_edges:
             self.graph.clear_edges()
         if routes is not None:
-            for r in routes:
+            num_routes = len(routes)
+            colors = self.generate_random_colors(num_routes) # Adicione mais cores conforme necessário
+            for idx, r in enumerate(routes):
                 if len(r) > 1:
                     for i in range(len(r) - 1):
-                        self.graph.add_edge(r[i], r[i + 1])
-                    self.graph.add_edge(r[-1], r[0])
+                        self.graph.add_edge(r[i], r[i + 1], color=colors[idx])  # Usar cor diferente para cada rota
+                    self.graph.add_edge(r[-1], r[0], color=colors[idx])  # Conectar o último ao primeiro nó
         if edges is not None:
             for i, j in edges:
                 self.graph.add_edge(i, j)
         plt.clf()
-        color = ['#74BDCB' for i in range(self.n)]
-        color[0] = '#FFA384'
-        nx.draw_networkx(self.graph, self.coord, with_labels=True, node_size=120, font_size=8, node_color=color)
+        edge_colors = nx.get_edge_attributes(self.graph, 'color').values()  # Obtém as cores das arestas
+        nx.draw_networkx(self.graph, self.coord, with_labels=False, node_size=20, font_size=5, edge_color=edge_colors)
+
+        # Adicionar legenda para cada rota
+        for idx, color in enumerate(colors[:len(routes)]):
+            labelRota = "Rota" if "pt" in language else "Route"
+            plt.plot([], [], color=color, label=f'{labelRota} {idx + 1}')
+        plt.legend()
+        # Adicionando título ao gráfico
+        plt.title(str(nome).split(".")[0])
+
+
         if stop:
             plt.show()
         else:
             plt.draw()
-            plt.savefig("images/" + str(nome).replace(".vrp", ".png"))
+            save = "pt/" if "pt" in language else "in/"
+            plt.savefig('images/'+save + str(nome).replace(".vrp", ".png"))
             plt.pause(sleep_time)
-        pass
+
+
 
     def route_cost(self, routes):
         cost = 0
