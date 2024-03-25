@@ -73,6 +73,14 @@ class CVRP:
         # Adicionando título ao gráfico
         plt.title(str(nome).split(".")[0])
 
+        if not os.path.exists('images'):
+            os.makedirs('images')
+
+        if not os.path.exists('images/pt') and "pt" in language:
+            os.makedirs('images/pt')
+
+        if not os.path.exists('images/in') and "in" in language:
+            os.makedirs('images/in')
 
         if stop:
             plt.show()
