@@ -1,5 +1,6 @@
 import os
 import random
+import re
 
 import networkx as nx
 import numpy as np
@@ -37,8 +38,14 @@ class CVRP:
         self.n = problem.dimension
         self.coord = np.array(list(problem.node_coords.values()))
         self.d = np.array(list(problem.demands.values()))
+        pattern = r"Optimal value: (\d+)"
+        match = re.search(pattern, problem.comment)
+        # Se houver uma correspondência, extrair o valor ótimo
+        if match:
+            optimal_value = int(match.group(1))
+            self.optimal_value = optimal_value
 
-    def generate_random_colors(self,num_colors):
+    def generate_random_colors(self, num_colors):
         colors = []
         for _ in range(num_colors):
             r = random.randint(0, 255)
@@ -47,12 +54,12 @@ class CVRP:
             colors.append('#{:02x}{:02x}{:02x}'.format(r, g, b))
         return colors
 
-    def plot(self, routes=None, edges=None, clear_edges=True, stop=True, sleep_time=0.01, nome=None,language="pt"):
+    def plot(self, routes=None, edges=None, clear_edges=True, stop=True, sleep_time=0.01, nome=None, language="pt"):
         if clear_edges:
             self.graph.clear_edges()
         if routes is not None:
             num_routes = len(routes)
-            colors = self.generate_random_colors(num_routes) # Adicione mais cores conforme necessário
+            colors = self.generate_random_colors(num_routes)  # Adicione mais cores conforme necessário
             for idx, r in enumerate(routes):
                 if len(r) > 1:
                     for i in range(len(r) - 1):
@@ -63,16 +70,21 @@ class CVRP:
                 self.graph.add_edge(i, j)
         plt.clf()
         edge_colors = nx.get_edge_attributes(self.graph, 'color').values()  # Obtém as cores das arestas
-        nx.draw_networkx(self.graph, self.coord, with_labels=False, node_size=20, font_size=5, edge_color=edge_colors)
+        nx.draw_networkx(self.graph, self.coord, with_labels=False, node_size=10, font_size=5, edge_color=edge_colors,
+                         arrowsize=3)  # Ajuste o valor de node_size conforme necessário
+
+        # Adicionando título ao gráfico
+        plt.title(str(nome).split(".")[0])
 
         # Adicionar legenda para cada rota
         for idx, color in enumerate(colors[:len(routes)]):
             labelRota = "Rota" if "pt" in language else "Route"
             plt.plot([], [], color=color, label=f'{labelRota} {idx + 1}')
-        plt.legend()
-        # Adicionando título ao gráfico
-        plt.title(str(nome).split(".")[0])
 
+        # Posicionando a legenda fora do gráfico
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Criar diretórios se não existirem
         if not os.path.exists('images'):
             os.makedirs('images')
 
@@ -87,40 +99,39 @@ class CVRP:
         else:
             plt.draw()
             save = "pt/" if "pt" in language else "in/"
-            plt.savefig('images/'+save + str(nome).replace(".vrp", ".png"))
+            plt.savefig('images/' + save + str(nome).replace(".vrp", ".png"), bbox_inches='tight')
             plt.pause(sleep_time)
 
-
-
     def route_cost(self, routes):
-        cost = 0
-        for r in routes:
-            for i in range(1, len(r)):
-                cost += self.c[r[i - 1], r[i]]
-            cost += self.c[r[-1], r[0]]
-        return cost
+        total_cost = 0
+        for route in routes:
+            # Soma dos custos entre cada par de pontos consecutivos
+            for i in range(len(route)):
+                total_cost += self.c[route[i - 1], route[i % len(route)]]
+
+        # Arredonda o custo total para baixo
+        total_cost = int(np.floor(total_cost))
+
+        return total_cost
 
     def route_one_cost(self, routesAux):
-        cost = 0
-        routes = [routesAux]
-        for r in routes:
-            for i in range(1, len(r)):
-                cost += self.c[r[i - 1], r[i]]
-            cost += self.c[r[-1], r[0]]
-        return cost
+        return self.route_cost([routesAux])
 
     def is_feasible(self, routes):
-        if max([self.d[r].sum() for r in routes]) > self.q:
-            print("capacidade violada")
+        # Verifica a capacidade
+        if max(self.d[r].sum() for r in routes) > self.q:
+            print("Capacidade violada")
             return False
+        # Verifica se o cliente é visitado mais de uma vez ou não visitado
         count = np.zeros(self.n, dtype=int)
         for r in routes:
             for i in r:
                 count[i] += 1
         if max(count[1:]) > 1:
-            print("cliente vizitado mais de uma vez")
+            print("Cliente visitado mais de uma vez")
             return False
         if min(count[1:]) < 1:
-            print("cliente não vizitado")
+            print("Cliente não visitado")
             return False
+
         return True

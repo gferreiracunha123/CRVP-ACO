@@ -25,6 +25,9 @@ class CVRPRunnerAg(object):
                 aux = self.best
                 # aux = best
             except Exception as e:
-                print(e)
                 break
+        if self.algorithm and self.algorithm.best_solution:
+            print(self.algorithm.best_solution.cost)
+        if aux is None:
+            print(aux)
         return aux

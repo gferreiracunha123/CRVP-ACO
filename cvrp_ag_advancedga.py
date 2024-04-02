@@ -171,7 +171,9 @@ class CVRPAdvancedGA(CVRPAlgorithm):
 
         # Inicializa as populações AGA com informações, número de populações e iterações totais
         self.populations = [AGAPopulation(self.info, total_iters) for _ in range(num_populations)]
-        self.pop_bests = [0 for _ in range(num_populations)]  # Lista para armazenar as melhores soluções de cada população
+        self.pop_bests = [0 for _ in range(num_populations)]
+        self.best_solution = self.populations[0].best_solution
+        # Lista para armazenar as melhores soluções de cada população
 
     # Método para avançar o algoritmo para a próxima iteração
     def step(self):

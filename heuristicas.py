@@ -2,6 +2,8 @@ from builtins import reversed
 import numpy as np
 import random as rd
 from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 import time
 
@@ -69,26 +71,29 @@ class Heuristicas:
         c = self.cvrp.c
         d = self.cvrp.d
         chg = False
-        imp = True
-        load = [d[r].sum() for r in route]
-        while imp:
-            imp = False
-            for a, ra in enumerate(route):
-                for i, vi in enumerate(ra):
-                    if i == 0:
-                        continue
 
-                    rem_cost = c[ra[i - 1], ra[(i + 1) % len(ra)]] - c[ra[i - 1], ra[i]] - c[
-                        ra[i], ra[(i + 1) % len(ra)]]
+        # Calcula a carga de cada rota
+        load = np.array([d[r].sum() for r in route])
+
+        # Loop principal para realizar a operação de substituição
+        while True:
+            imp = False  # Flag para indicar se houve uma melhoria
+            for a, ra in enumerate(route):
+                for i, vi in enumerate(ra[1:], start=1):  # Começa de 1 para ignorar o primeiro nó
+                    rem_cost = c[ra[i - 1], ra[(i + 1) % len(ra)]] - c[ra[i - 1], vi] - c[vi, ra[(i + 1) % len(ra)]]
                     if rem_cost > -1e-3:
                         continue
+
+                    # Inicializa os valores mínimos
                     min_val = np.inf
                     min_arg = None
+
+                    # Procura por uma rota onde o nó vi possa ser inserido
                     for b, rb in enumerate(route):
                         if load[b] + d[vi] <= q and a != b:
                             insert_pos, add_cost = self._arg_best_insection(rb, vi)
                             if add_cost < min_val and add_cost + rem_cost < -1e-3:
-                                # adaptação para o tabu
+                                # Verifica se a operação é tabu
                                 if self.tabu_list is not None:
                                     if self._is_tabu(set(ra) - set([vi]), cost + add_cost + rem_cost) or self._is_tabu(
                                             rb + [vi], cost + add_cost + rem_cost):
@@ -97,16 +102,21 @@ class Heuristicas:
                                 min_arg = b, insert_pos
                                 if min_val < 1e-3:
                                     break
+
+                    # Se encontrou uma posição de inserção válida
                     if min_arg is not None and min_val + rem_cost < -1e-3:
-                        del ra[i]
-                        load[a] -= d[vi]
-                        route[min_arg[0]].insert(min_arg[1], vi)
-                        load[min_arg[0]] += d[vi]
+                        del ra[i]  # Remove o nó da rota atual
+                        load[a] -= d[vi]  # Atualiza a carga da rota atual
+                        route[min_arg[0]].insert(min_arg[1], vi)  # Insere o nó na nova posição
+                        load[min_arg[0]] += d[vi]  # Atualiza a carga da nova rota
                         chg = imp = True
-                        cost += min_val + rem_cost
-                        if self.plot:
-                            self.cvrp.plot(routes=route + [ra], clear_edges=True, stop=False)
+                        cost += min_val + rem_cost  # Atualiza o custo
                         break
+
+            # Se não houve melhorias, sai do loop principal
+            if not imp:
+                break
+
         assert self.cvrp.is_feasible(route)
         return chg, cost
 
@@ -115,7 +125,9 @@ class Heuristicas:
         c = self.cvrp.c
         d = self.cvrp.d
         chg = False
-        load = [d[r].sum() for r in route]
+
+        # Calcula a carga de cada rota
+        load = np.array([d[r].sum() for r in route])
 
         # Função auxiliar para calcular a distância entre dois vértices
         def calculate_delta(a, i, b, j):
@@ -128,26 +140,34 @@ class Heuristicas:
                      c[route[b][j - 1], vj] - c[vj, route[b][(j + 1) % len(route[b])]])
             return delta
 
+        # Loop principal para realizar a operação de troca
         while True:
             imp = False
             for a in range(1, len(route)):
                 for i in range(1, len(route[a])):
+                    vi = route[a][i]
                     for b in range(a):
                         for j in range(1, len(route[b])):
+                            vj = route[b][j]
                             delta = calculate_delta(a, i, b, j)
-                            if delta < -1e-3 and load[a] + d[route[b][j]] - d[route[a][i]] <= q and load[b] + d[
-                                route[a][i]] - d[route[b][j]] <= q:
+                            if delta < -1e-3 and load[a] + d[vj] - d[vi] <= q and load[b] + d[vi] - d[vj] <= q:
                                 if self.tabu_list is not None:
                                     if self._is_tabu(route[a], cost + delta) or self._is_tabu(route[b], cost + delta):
                                         continue
-                                vi, vj = route[a][i], route[b][j]
                                 route[a][i], route[b][j] = vj, vi
                                 load[a] += d[vj] - d[vi]
                                 load[b] += d[vi] - d[vj]
                                 chg = imp = True
                                 cost += delta
-                                if self.plot:
-                                    self.cvrp.plot(routes=route, clear_edges=True, stop=False)
+                                break
+                        if imp:
+                            break
+                    if imp:
+                        break
+                if imp:
+                    break
+
+            # Se não houve melhorias, sai do loop principal
             if not imp:
                 break
 
@@ -260,6 +280,7 @@ class Heuristicas:
             cost = self.cvrp.route_cost(sol)
 
         neighborhoods = [self.swap, self.replace, self.two_opt_star, self.intra_route]
+       # neighborhoods = [self.replace]
 
         while True:
             np.random.shuffle(neighborhoods)
@@ -352,6 +373,7 @@ class Heuristicas:
         visited = np.zeros([n], dtype=bool)
 
         cont = 1
+        qOtmizador = q * 0.5
         while cont < n:
             path = [0]
             v = 0
@@ -366,10 +388,10 @@ class Heuristicas:
                 heu = np.array([(maxc - c[v, i]) / maxc for i in can])
                 if v != 0:
                     # se carga for menor de 50% prioriza as rotas mais longe do deposito
-                    if load < q * 0.5:
+                    if load < qOtmizador:
                         heu *= np.array([2 if c[0, i] > c[0, v] else 1 for i in can])
                     else:
-                        heu *= np.array([2 if c[0, i] < c[0, v] else 1 for i in can])
+                        heu *= np.array([1 if c[0, i] < c[0, v] else 2 for i in can])
 
                 heu /= heu.max()
                 weight /= weight.max()  # normalizar
@@ -392,47 +414,60 @@ class Heuristicas:
 
     def _reinforcement(self, sol, valor, trail):
         c = self.cvrp.c
-        for r in sol:
-            if c[r[0], r[1]] < c[r[-1], r[0]]:
-                for i in range(1, len(r)):
-                    trail[r[i - 1], r[i]] += valor
-                trail[r[-1], r[0]] += valor
-            else:
-                for i in range(1, len(r)):
-                    trail[r[i], r[i - 1]] += valor
-                trail[r[0], r[-1]] += valor
-        return trail
+        trail_copy = np.copy(trail)
 
-    def ant_colony(self, sol, ite: int, ants: int, evapor=0.1, k=1, worst=False,
-                   elitist=False):
+        for route in sol:
+            start_node = route[0]
+            for i, node in enumerate(route[:-1]):
+                next_node = route[i + 1]
+                if c[node, next_node] < c[route[-1], start_node]:
+                    trail_copy[node, next_node] += valor
+                else:
+                    trail_copy[next_node, node] += valor
+
+        return trail_copy
+
+    def ant_colony(self, sol, ite: int, ants: int, evapor=0.1, k=1, worst=False, elitist=False):
         print("Processando...")
         n = self.cvrp.n
         trail = np.zeros(shape=[n, n], dtype=float)
+        trailLocal = np.zeros(shape=[n, n], dtype=float)
         best_route = None
         best_cost = np.inf
-        best_estatic = np.inf
         listBests = []
         cost = None
         num_intracao = 0
         if sol is not None:
-            self._reinforcement(sol, -1, trail)
+            trail = (1 - evapor) * trail
+            self._reinforcement(sol, 1, trail)
+        paradaInterna = int(ants * 0.4)
+        paradaExterna = int(ite * 0.7)
         for i in range(ite):
             lista = []
-            if self.force_stop(listBests):
+
+            if self.force_stop(listBests, best_cost, paradaExterna):
                 break
-            for f in range(ants):
-                sol = self._ant_run(trail)
-                cost = self.cvrp.route_cost(sol)
-                progress(f + 1, ants, f'Turno: {i + 1} \tLast Ant: {cost} \t Best: {best_cost}')
-                cost, sol = self.tabu_search(1, k, 20, 1.05, cost, sol)
-                lista.append((cost, sol))
-                if cost < best_cost:
-                    best_cost = cost
-                    best_route = deepcopy(sol)
-                # print(i, f, best_route, best_cost)
+
+            with ThreadPoolExecutor(max_workers=ants) as executor:
+                futures = [executor.submit(self._ant_run, trail) for _ in range(ants)]
+
+                for future in tqdm(as_completed(futures), total=ants, desc=f'Turno: {i + 1}/{ite}={best_cost}'):
+                    sol = future.result()
+                    cost = self.cvrp.route_cost(sol)
+                    cost, sol = self.tabu_search(2, k, 10, 1.01, cost, sol)
+                    lista.append((cost, sol))
+                    if self.force_stop(listBests, cost, paradaInterna):
+                        break
+
+                    if cost < best_cost:
+                        best_cost = cost
+                        best_route = deepcopy(sol)
+                        listBests.append(best_cost)
+
             listBests.append(best_cost)
             # evaporação
             trail = (1 - evapor) * trail
+
             # reforço
             if worst:
                 # pega pior solução e atualiza a lista de feromonio com -1
@@ -448,14 +483,12 @@ class Heuristicas:
             for cost, sol in lista[:k]:
                 self._reinforcement(sol, delta, trail)
                 delta -= 1
+
             num_intracao = i
+
         return best_cost, best_route, num_intracao
 
-    def force_stop(self, lista):
-        if len(lista) < 3:
-            return False
-
-        ultimas_cinco_posicoes = lista[-3:]
-        primeiro_elemento = ultimas_cinco_posicoes[0]
-
-        return all(elemento == primeiro_elemento for elemento in ultimas_cinco_posicoes)
+    def force_stop(self, lista, cost, stop):
+        if lista.count(cost) >= stop:
+            return True
+        return False
