@@ -5,6 +5,8 @@ import time
 from datetime import datetime
 from os import listdir
 from os.path import isfile, join
+import datetime
+import numpy as np
 
 from cvrp import CVRP
 from cvrp_ag_advancedga import CVRPAdvancedGA
@@ -60,8 +62,13 @@ def runner(heuristica_name, arq, file, ite: int = None, ants: int = 20, evapor=0
         # Define o número de iterações baseado na metade do número de nós, se não for especificado
         try:
             if ite == None:
-                ite = int(cvrp.n * 0.4)  # 10% do número total de nós para as iterações
-                ants = int(cvrp.n * 0.6)  # 60% do número total de nós para o número de formigas
+                # olhar concetração de pontos e possivel ??
+                # Olhar as demandas ??
+                ite, ants = 2, 20
+                
+                print("Número de iterações:", ite)
+                #ite = int(cvrp.n * 0.4)  # 10% do número total de nós para as iterações
+                #ants = int(cvrp.n * 0.6)  # 60% do número total de nós para o número de formigas
         except Exception as e:
             # Exibe uma mensagem de erro se houver um problema com o cálculo do número de iterações
             print("ite: " + cvrp.n + " e: " + str(e))
@@ -109,11 +116,36 @@ def runner(heuristica_name, arq, file, ite: int = None, ants: int = 20, evapor=0
             # Formatar a diferença de tempo
             tempo_formatado = "{:02}:{:02}:{:02}".format(horas, minutos, segundos)
             cost_result = cvrp.route_cost(routes)
-            optimal_value = round(cvrp.optimal_value, 2)
+            optimal_value = 0
+            if cvrp.optimal_value != None:
+                try:
+                    round(cvrp.optimal_value, 2)
+                except Exception as e:
+                    print(e);
             cria_csv(heuristica_name, arq, str(file).split('/')[-1], len(routes), cost_result,
                      tempo_formatado, interacao, optimal_value, statistics.stdev([cost_result, optimal_value]))
 
+def calculate_stop_criteria(cvrp):
+    # Calcula a densidade de pontos
+    y_array = cvrp.coord[:, 0]  # Considerando que a primeira coluna representa as coordenadas x
+    z_array = cvrp.coord[:, 1]
 
+    point_density = cvrp.n / ((max(y_array) - min(y_array)) * (max(z_array) - min(z_array)))
+
+    # Calcula o desvio padrão das demandas
+    demand_std = np.std(cvrp.d)
+
+    # Heurística para determinar o número de iterações e formigas
+    num_iterations = max(10, min(int(cvrp.n * 0.6), 100))
+    num_ants = max(5, min(int(cvrp.n * 0.6), 50))
+
+    # Ajuste com base na densidade de pontos e no desvio padrão das demandas
+    if point_density > 0.1:
+        num_iterations *= 2
+    if demand_std > 10:
+        num_ants *= 2
+
+    return num_iterations, num_ants
 if __name__ == '__main__':
     # Define o nome do arquivo CSV para armazenar os resultados da análise
 
@@ -153,10 +185,15 @@ if __name__ == '__main__':
     parser.add_argument("--AG", action="store_true", help="Inicia a popualação inicial com Algoritimo genetico")
     parser.add_argument("--num_populations", type=int, default=5, help="Número de populações AG")
     parser.add_argument("--total_iters", type=int, default=100, help="Total de iterações AG")
+    parser.add_argument("--file", type=str, default=100, help="nome do arquivo")
     # Parseia os argumentos da linha de comando
     args = parser.parse_args()
     ag = "AG_ACO" if args.AG else "ACO"
-    arq = 'analise/analise_Ant_' + ag + '.csv'
+    # Gerar um timestamp atual
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+    # Nome do arquivo com timestamp concatenado
+    arq = "analise/analise_Ant_"+ag+"_"+timestamp+".csv"
     # Abre o arquivo CSV em modo de escrita
     f = open(arq, 'w', newline='', encoding='utf-8')
     # Cria um escritor CSV
@@ -171,9 +208,8 @@ if __name__ == '__main__':
         # Verifica se o arquivo é do tipo ".vrp"
         if not ".vrp" in file:
             # Se não for, pula para o próximo arquivo
-            print("skip: " + file)
+           # print("skip: " + file)
             continue
-        # Lista para armazenar as rotas
-        # runner("ACO+Tabu", arq, file, args.ite, args.ants, args.evapor, args.k, args.worst, args.elitist, args.num_populations,args.total_iters, False)
-        runner("+AG", arq, file, args.ite, args.ants, args.evapor, args.k, args.worst, args.elitist,
-               args.num_populations, args.total_iters, True)
+        if  args.file in file:
+            runner("+AG", arq, file, args.ite, args.ants, args.evapor, args.k, args.worst, args.elitist,
+                   args.num_populations, args.total_iters, True)

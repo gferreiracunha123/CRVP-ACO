@@ -22,16 +22,17 @@ if __name__ == '__main__':
     folds = listdir(folds_raiz)
     for fold in folds:
         # Concatena o caminho do diretório raiz com o nome do arquivo
-        try:
-            nome_arquivo_array_plot = [folds_raiz + fold]
-            array = ler_arquivo_e_transformar_em_array(nome_arquivo_array_plot[0])
-            if fold.__contains__("-"):
-                A_B = fold.split("-")[0]
-            else:
-                A_B = fold.split("_")[0]
-            nome = 'dataset/Vrp-Set-' + A_B + '/' + fold.replace(".result", "")
-            cvrp = CVRP(str(nome))
-            cvrp.plot(routes=array, clear_edges=True, stop=False, nome=fold.replace(".result", ""), language="pt")
-            cvrp.plot(routes=array, clear_edges=True, stop=False, nome=fold.replace(".result", ""), language="in")
-        except:
-            print('Erro plot %s',fold)
+        if fold.__contains__("Li"):
+            try:
+                nome_arquivo_array_plot = [folds_raiz + fold]
+                array = ler_arquivo_e_transformar_em_array(nome_arquivo_array_plot[0])
+                if fold.__contains__("-"):
+                    A_B = fold.split("-")[0]
+                else:
+                    A_B = fold.split("_")[0]
+                nome = 'dataset/Vrp-Set-' + A_B + '/' + fold.replace(".result", "")
+                cvrp = CVRP(str(nome))
+                cvrp.plot(routes=array, clear_edges=True, stop=False, nome=fold.replace(".result", ""), language="pt")
+                cvrp.plot(routes=array, clear_edges=True, stop=False, nome=fold.replace(".result", ""), language="in")
+            except:
+                print('Erro plot %s',fold)

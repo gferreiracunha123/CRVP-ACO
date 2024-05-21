@@ -38,12 +38,10 @@ class CVRP:
         self.n = problem.dimension
         self.coord = np.array(list(problem.node_coords.values()))
         self.d = np.array(list(problem.demands.values()))
-        pattern = r"Optimal value: (\d+)"
-        match = re.search(pattern, problem.comment)
-        # Se houver uma correspondência, extrair o valor ótimo
-        if match:
-            optimal_value = int(match.group(1))
-            self.optimal_value = optimal_value
+        try:
+            self.optimal_value = 0
+        except:
+            self.optimal_value = 0
 
     def generate_random_colors(self, num_colors):
         colors = []
@@ -70,8 +68,8 @@ class CVRP:
                 self.graph.add_edge(i, j)
         plt.clf()
         edge_colors = nx.get_edge_attributes(self.graph, 'color').values()  # Obtém as cores das arestas
-        nx.draw_networkx(self.graph, self.coord, with_labels=False, node_size=10, font_size=5, edge_color=edge_colors,
-                         arrowsize=3)  # Ajuste o valor de node_size conforme necessário
+        nx.draw_networkx(self.graph, self.coord, with_labels=False, node_size=1, font_size=5, edge_color=edge_colors,
+                         arrowsize=1)  # Ajuste o valor de node_size conforme necessário
 
         # Adicionando título ao gráfico
         plt.title(str(nome).split(".")[0])
@@ -99,7 +97,7 @@ class CVRP:
         else:
             plt.draw()
             save = "pt/" if "pt" in language else "in/"
-            plt.savefig('images/' + save + str(nome).replace(".vrp", ".png"), bbox_inches='tight')
+            plt.savefig('images/' + save + str(nome).replace(".vrp", ".svg"), bbox_inches='tight')
             plt.pause(sleep_time)
 
     def route_cost(self, routes):
