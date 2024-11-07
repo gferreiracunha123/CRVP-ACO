@@ -451,7 +451,7 @@ class Heuristicas:
             with ThreadPoolExecutor(max_workers=ants) as executor:
                 futures = [executor.submit(self._ant_run, trail) for _ in range(ants)]
 
-               # for future in tqdm(as_completed(futures), total=ants, desc=f'Turno: {i + 1}/{ite}={best_cost}'):]
+
                 for future in as_completed(futures):
                     sol = future.result()
                     cost = self.cvrp.route_cost(sol)
